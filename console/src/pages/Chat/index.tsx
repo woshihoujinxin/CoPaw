@@ -13,6 +13,7 @@ import Weather from "./Weather";
 import { getApiToken, getApiUrl } from "../../api/config";
 import { providerApi } from "../../api/modules/provider";
 import ModelSelector from "./ModelSelector";
+import VoiceInput from "../../components/VoiceInput";
 import "./index.module.less";
 
 interface CustomWindow extends Window {
@@ -103,9 +104,24 @@ export default function ChatPage() {
       }
     };
 
+    // Listen for voice input events and inject text into input
+    const handleVoiceInput = (e: CustomEvent<{ text: string }>) => {
+      const textarea = document.querySelector(".as-chat-input textarea") as HTMLTextAreaElement;
+      if (textarea) {
+        const currentValue = textarea.value;
+        const newValue = currentValue + (currentValue ? " " : "") + e.detail.text;
+        textarea.value = newValue;
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        textarea.focus();
+      }
+    };
+
+    window.addEventListener("voice-input", handleVoiceInput as EventListener);
+
     return () => {
       sessionApi.onSessionIdResolved = null;
       sessionApi.onSessionRemoved = null;
+      window.removeEventListener("voice-input", handleVoiceInput as EventListener);
     };
   }, []);
 
@@ -220,6 +236,13 @@ export default function ChatPage() {
       return true;
     };
 
+    // Function to inject text into the input box
+    const handleVoiceInput = (text: string) => {
+      // Dispatch a custom event that the chat component can listen to
+      const event = new CustomEvent("voice-input", { detail: { text } });
+      window.dispatchEvent(event);
+    };
+
     return {
       ...i18nConfig,
       theme: {
@@ -229,6 +252,11 @@ export default function ChatPage() {
       sender: {
         ...(i18nConfig as any)?.sender,
         beforeSubmit: handleBeforeSubmit,
+        header: (
+          <VoiceInput
+            onTextReceived={handleVoiceInput}
+          />
+        ),
       },
       session: { multiple: true, api: wrappedSessionApi },
       api: {
